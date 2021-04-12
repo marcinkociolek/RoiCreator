@@ -29,7 +29,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-typedef MazdaRoi<unsigned int, 2> MR2DType;
+//typedef MazdaRoi<unsigned int, 2> MR2DType;
 
 using namespace boost;
 using namespace std;
@@ -194,6 +194,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->comboBoxNormalization->addItem("None");
     ui->comboBoxNormalization->addItem("MinMax");
     ui->comboBoxNormalization->addItem("+/-3 sigma");
+    ui->comboBoxNormalization->addItem("Global");
     blockShowingImages = false;
 }
 
@@ -245,36 +246,35 @@ void MainWindow::ShowsScaledImage(Mat Im, string ImWindowName)
     imshow(ImWindowName, ImToShow);
 }
 //------------------------------------------------------------------------------------------------------------------------------
-cv::Mat MainWindow::OpenImage(boost::filesystem::path FileToOpen)
+void MainWindow::OpenImage(boost::filesystem::path FileToOpen)
 {
-    //QString ImageFolderQStr = ui->lineEditImageFolder->text();
-    //path imageFilePath = ImageFolderQStr.toStdWString();
-    //imageFilePath.append(FileName.toStdWString());
+    //if(ui->checkBoxAutocleanOut->checkState())
+    //    ui->textEditOut->clear();
 
-    if(ui->checkBoxAutocleanOut->checkState())
-        ui->textEditOut->clear();
-
-    Mat ImOut;
+    ImIn.release();
+    maxX = 0;
+    maxY = 0;
+    maxXY = 0;
 
     if(!exists(FileToOpen))
     {
         ui->textEditOut->append("file " + QString::fromStdWString(FileToOpen.wstring()) + "not exists");
-        return ImOut;
+        return;
     }
 
     //int flags = IMREAD_COLOR;;
     int flags = IMREAD_ANYDEPTH;
-    ImOut = imread(FileToOpen.string(), flags);
+    ImIn = imread(FileToOpen.string(), flags);
 
-    if(ImOut.empty())
+    if(ImIn.empty())
     {
         ui->textEditOut->append("improper file");
-        return ImOut;
+        return;
     }
 
-
-
-    return ImOut;
+    maxX = ImIn.cols;
+    maxY = ImIn.rows;
+    maxXY = maxX * maxY;
 }
 //------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------
@@ -293,57 +293,6 @@ void MainWindow::ShowImages()
 
     if(ui->checkBoxShowMask->checkState())
     {
-        /*
-        int pastePosX = 0;
-        Mat ImToShow = Mat::zeros(combinedMaxY,combinedMaxX, CV_8UC3);
-
-        Mat ImToShowLocal;
-
-        double minNorm = ui->doubleSpinBoxMinNorm->value();
-        double maxNorm = ui->doubleSpinBoxMaxNorm->value();
-
-        ImToShowLocal = ShowImageF32Gray(ImIn2,minNorm,maxNorm);
-        if(ui->checkBoxShowMaskAsContour->checkState())
-            ImToShowLocal = ShowTransparentRegionOnImage(GetContour5(Mask2), ImToShowLocal);
-        else
-            ImToShowLocal = ShowTransparentRegionOnImage(Mask2, ImToShowLocal);
-        ImToShowLocal.copyTo(ImToShow(Rect(pastePosX, 0, ImIn2.cols, ImIn2.rows)));
-        pastePosX += ImIn2.cols;
-
-        ImToShowLocal = ShowImageF32Gray(ImIn3,minNorm,maxNorm);
-        if(ui->checkBoxShowMaskAsContour->checkState())
-            ImToShowLocal = ShowTransparentRegionOnImage(GetContour5(Mask3), ImToShowLocal);
-        else
-            ImToShowLocal = ShowTransparentRegionOnImage(Mask3, ImToShowLocal);
-        ImToShowLocal.copyTo(ImToShow(Rect(pastePosX, 0, ImIn3.cols, ImIn3.rows)));
-        pastePosX += ImIn3.cols;
-
-        ImToShowLocal = ShowImageF32Gray(ImIn4,minNorm,maxNorm);
-        if(ui->checkBoxShowMaskAsContour->checkState())
-            ImToShowLocal = ShowTransparentRegionOnImage(GetContour5(Mask4), ImToShowLocal);
-        else
-            ImToShowLocal = ShowTransparentRegionOnImage(Mask4, ImToShowLocal);
-        ImToShowLocal.copyTo(ImToShow(Rect(pastePosX, 0, ImIn4.cols, ImIn4.rows)));
-        pastePosX += ImIn4.cols;
-
-        ImToShowLocal = ShowImageF32Gray(ImIn5,minNorm,maxNorm);
-        if(ui->checkBoxShowMaskAsContour->checkState())
-            ImToShowLocal = ShowTransparentRegionOnImage(GetContour5(Mask5), ImToShowLocal);
-        else
-            ImToShowLocal = ShowTransparentRegionOnImage(Mask5, ImToShowLocal);
-        ImToShowLocal.copyTo(ImToShow(Rect(pastePosX, 0, ImIn5.cols, ImIn5.rows)));
-        pastePosX += ImIn5.cols;
-
-        ImToShowLocal = ShowImageF32Gray(ImIn6,minNorm,maxNorm);
-        if(ui->checkBoxShowMaskAsContour->checkState())
-            ImToShowLocal = ShowTransparentRegionOnImage(GetContour5(Mask6), ImToShowLocal);
-        else
-            ImToShowLocal = ShowTransparentRegionOnImage(Mask6, ImToShowLocal);
-        ImToShowLocal.copyTo(ImToShow(Rect(pastePosX, 0, ImIn6.cols, ImIn6.rows)));
-        pastePosX += ImIn6.cols;
-
-        ShowsScaledImage(ImToShow, "Mask On Image");
-        */
 
     }
 
@@ -391,31 +340,28 @@ void MainWindow::ShowImages()
 
 }
 //------------------------------------------------------------------------------------------------------------------------------
-void MainWindow::ProcessImage()
+void MainWindow::FlatFieldCorrection()
 {
     if(ImIn.empty())
         return;
-    maxX = ImIn.cols;
-    maxY = ImIn.rows;
-    maxXY = maxX * maxY;
-
     ImCorrected.release();
-    if(ui->checkBoxBackgroundCorrection->checkState())
+
+    if(!ImCombined.empty())
     {
-        if(!ImCombined.empty())
-        {
-            ImCorrected = BackgroundCorrection(ImIn,ImCombined);
-        }
-        else
-        {
-            ui->textEditOut->append("ImCombined does not exists");
-            ImCorrected = ImIn;
-        }
+        ImCorrected = BackgroundCorrection(ImIn,ImCombined);
     }
     else
+    {
+        ui->textEditOut->append("ImCombined does not exists");
         ImCorrected = ImIn;
+    }
 
-//--------------------------------------Get Mask from image
+}
+//------------------------------------------------------------------------------------------------------------------------------
+void MainWindow::GetGlobalMask()
+{
+    if(ImIn.empty())
+        return;
     MaskFromImage.release();
     if(ui->checkBoxThresholdImage->checkState())
     {
@@ -430,12 +376,14 @@ void MainWindow::ProcessImage()
     {
         MaskFromImage = Mat::ones(maxY, maxX, CV_16U);
     }
-
-//--------------------------------------Get Mask Tiles
+}
+//------------------------------------------------------------------------------------------------------------------------------
+void MainWindow::GetTileMask()
+{
     MaskCombined.release();
     MaskTile.release();
     MaskCombined = Mat::zeros(maxY, maxX, CV_16U);
-    vector <MR2DType*> ROIVect;
+
     if(ui->checkBoxCreateTileROIs->checkState())
     {
         MaskTile = Mat::zeros(maxY, maxX, CV_16U);
@@ -469,10 +417,10 @@ void MainWindow::ProcessImage()
 
                 for(int x = xStart; x < maxX - radius; x += offset)
                 {
-                    MaskTile *=0;
+                    MaskTile *= 0;
                     Centroid.y = y;
                     Centroid.x = x;
-                    circle(MaskTile,Centroid,radius,1,-1);
+                    circle(MaskTile,Centroid,radius,1 ,-1);
                     if(CheckIfMask1IsIncludedInMask2(MaskTile,MaskFromImage)>0)
                     {
                         circle(MaskCombined,Centroid,radius,1);
@@ -488,7 +436,7 @@ void MainWindow::ProcessImage()
                             wMaskTile++;
                         }
 
-                        ROI->SetName(imageFilePath.stem().string() + "Y" + ItoStrLZ(y,4)+ "X" + ItoStrLZ(x,4));
+                        ROI->SetName(imageFilePath.stem().string() + "R" + ItoStrLZ(radius,3) + "O" + ItoStrLZ(offset,4) + "Y" + ItoStrLZ(y,4)+ "X" + ItoStrLZ(x,4));
                         ROI->SetColor(RegColorsRGB[(roiNr-1)%16]);
 
                         ROIVect.push_back(ROI);
@@ -532,34 +480,37 @@ void MainWindow::ProcessImage()
         roiNr++;
     }
 
-//----------------------------------------------Save roi File
-    if(ui->checkBoxSaveTileRoi->checkState())
+}
+//------------------------------------------------------------------------------------------------------------------------------
+void MainWindow::SaveRoi()
+{
+    path RoiFile = ui->lineEditOutFolder->text().toStdWString();
+    if(exists(RoiFile))
     {
-        path RoiFile = ui->lineEditOutFolder->text().toStdWString();
-        if(exists(RoiFile))
+        if(is_directory(RoiFile))
         {
-            if(is_directory(RoiFile))
-            {
-                RoiFile.append(imageFilePath.stem().string() + ".roi");
-                MazdaRoiIO<MR2DType>::Write(RoiFile.string(), &ROIVect, NULL);
-            }
+            RoiFile.append(imageFilePath.stem().string() + ".roi");
+            MazdaRoiIO<MR2DType>::Write(RoiFile.string(), &ROIVect, NULL);
         }
-
     }
-    while(ROIVect.size() > 0)
+    else
     {
-         delete ROIVect.back();
-         ROIVect.pop_back();
+        ui->textEditOut->append("Roi directory does not exists");
     }
-   // ui->textEditOut->append(QString::fromStdString( MatPropetiesAsText(ImIn)));
-//--------------------------------------------GetNormalisation Params
-    double maxNorm;
-    double minNorm;
+}
+//------------------------------------------------------------------------------------------------------------------------------
+void MainWindow::GetNormalisationParams()
+{
+    double maxNorm = ui->doubleSpinBoxMaxNorm->value();
+    double minNorm = ui->doubleSpinBoxMinNorm->value();
 
     switch(ui->comboBoxNormalization->currentIndex())
     {
     case 1:
         NormParamsMinMax16U(ImCorrected, MaskFromImage, 1, &maxNorm, &minNorm);
+        break;
+    case 3:
+
         break;
     default:
         maxNorm = 65535;
@@ -569,23 +520,61 @@ void MainWindow::ProcessImage()
 
     ui->doubleSpinBoxMaxNorm->setValue(maxNorm);
     ui->doubleSpinBoxMinNorm->setValue(minNorm);
-    ui->textEditOut->append("maxNorm = " + QString::number(maxNorm) +
-                            " minNorm = " + QString::number(minNorm));
+    ui->textEditOut->append(" minNorm = " + QString::number(minNorm) +
+                            "maxNorm = " + QString::number(maxNorm));
 
+}
+//------------------------------------------------------------------------------------------------------------------------------
+void MainWindow::SaveCorrectedImage()
+{
+    path ImageOutFile = ui->lineEditOutFolder->text().toStdWString();
+    if(exists(ImageOutFile))
+    {
+        if(is_directory(ImageOutFile))
+        {
+            ImageOutFile.append(imageFilePath.stem().string() + ".tif");
+            Mat ImTemp = Normalise16Gray(ImCorrected, ui->doubleSpinBoxMinNorm->value(),
+                                         ui->doubleSpinBoxMaxNorm->value());
+            imwrite(ImageOutFile.string(), ImTemp);
+        }
+    }
+}
+//------------------------------------------------------------------------------------------------------------------------------
+void MainWindow::ProcessImage()
+{
+    if(ImIn.empty())
+        return;
+    if(ui->checkBoxBackgroundCorrection->checkState())
+    {
+        FlatFieldCorrection();
+    }
+    else
+    {
+        ImCorrected.release();
+        ImCorrected = ImIn;
+    }
+    GetGlobalMask();
+    GetTileMask();
+    if(ui->checkBoxSaveTileRoi->checkState())
+    {
+       SaveRoi();
+
+    }
+    while(ROIVect.size() > 0)
+    {
+         delete ROIVect.back();
+         ROIVect.pop_back();
+    }
+   // ui->textEditOut->append(QString::fromStdString( MatPropetiesAsText(ImIn)));
+//--------------------------------------------GetNormalisation Params
+    GetNormalisationParams();
 //-------------------------------------------- Save Corrected image
+
+
+
     if(ui->checkBoxSaveCorrecteImage->checkState())
     {
-        path ImageOutFile = ui->lineEditOutFolder->text().toStdWString();
-        if(exists(ImageOutFile))
-        {
-            if(is_directory(ImageOutFile))
-            {
-                ImageOutFile.append(imageFilePath.stem().string() + ".tif");
-                Mat ImTemp = Normalise16Gray(ImCorrected, ui->doubleSpinBoxMinNorm->value(),
-                                             ui->doubleSpinBoxMaxNorm->value());
-                imwrite(ImageOutFile.string(), ImTemp);
-            }
-        }
+        SaveCorrectedImage();
     }
     if(!blockShowingImages)
         ShowImages();
@@ -600,6 +589,13 @@ void MainWindow::ProcessImage()
 //------------------------------------------------------------------------------------------------------------------------------
 void MainWindow::on_pushButtonOpenImageFolder_clicked()
 {
+    ImIn.release();
+    ImCombined.release();
+    ImCorrected.release();
+    MaskFromImage.release();
+    MaskTile.release();
+    MaskCombined.release();
+
     QFileDialog dialog(this, "Open Folder");
     dialog.setFileMode(QFileDialog::Directory);
     dialog.setDirectory(ui->lineEditImageFolder->text());
@@ -635,8 +631,7 @@ void MainWindow::on_listWidgetImageFiles_currentTextChanged(const QString &curre
 
     imageFilePath = ImageFolderQStr.toStdWString();
     imageFilePath.append(currentText.toStdWString());
-    ImIn.release();
-    ImIn = OpenImage(imageFilePath);
+    OpenImage(imageFilePath);
     ProcessImage();
 
 }
@@ -648,8 +643,7 @@ void MainWindow::on_doubleSpinBoxImageScale_valueChanged(double arg1)
 
 void MainWindow::on_comboBoxNormalization_currentIndexChanged(int index)
 {
-    ImIn.release();
-    ImIn = OpenImage(imageFilePath);
+    OpenImage(imageFilePath);
     ProcessImage();
 }
 
@@ -737,6 +731,9 @@ void MainWindow::on_pushButtonOpenOutFolder_clicked()
 
 void MainWindow::on_pushButtonProcessAllFiles_clicked()
 {
+    ui->textEditOut->clear();
+    ui->textEditOut->append("Allfiles process start");
+    waitKey(100);
     blockShowingImages = true;
     int filesCount = ui->listWidgetImageFiles->count();
     ui->textEditOut->clear();
@@ -746,35 +743,45 @@ void MainWindow::on_pushButtonProcessAllFiles_clicked()
         //time (&begin);
         imageFilePath = ui->lineEditImageFolder->text().toStdWString();
         imageFilePath.append(ui->listWidgetImageFiles->item(fileNr)->text().toStdWString());
-        ImIn.release();
-        ImIn = OpenImage(imageFilePath);
+        OpenImage(imageFilePath);
         ProcessImage();
 
         //waitKey(20);
 
     }
     blockShowingImages = false;
+    ui->textEditOut->append("Allfiles process done");
 }
 
 void MainWindow::on_pushButtonGetImCombination_clicked()
 {
+    ui->textEditOut->clear();
+    ui->textEditOut->append("Flatfield calculation start");
+    waitKey(100);
     blockShowingImages = true;
+    imageFilePath = ui->lineEditImageFolder->text().toStdWString();
+    imageFilePath.append(ui->listWidgetImageFiles->item(0)->text().toStdWString());
+    OpenImage(imageFilePath);
+    if(ImIn.empty())
+    {
+        ui->textEditOut->append("No image files Flatfield calculation aborted");
+        return;
+    }
     ImCombined.release();
     ImCombined = Mat::zeros(maxY, maxX, CV_16U);
 
     int filesCount = ui->listWidgetImageFiles->count();
-    ui->textEditOut->clear();
+
     for(int fileNr = 0; fileNr< filesCount; fileNr++)
     {
         //time_t begin,end;
         //time (&begin);
         imageFilePath = ui->lineEditImageFolder->text().toStdWString();
         imageFilePath.append(ui->listWidgetImageFiles->item(fileNr)->text().toStdWString());
-        ImIn.release();
-        ImIn = OpenImage(imageFilePath);
+        OpenImage(imageFilePath);
         MaxIntensity(ImCombined, ImIn);
 
-        //waitKey(20);
+        //
 
     }
     if(ui->checkBoxBlurFilter->checkState())
@@ -785,5 +792,70 @@ void MainWindow::on_pushButtonGetImCombination_clicked()
 
     blockShowingImages = false;
     ShowImages();
-    ui->textEditOut->append("Max Intensity done");
+    ui->textEditOut->append("Flatfield calculation done");
+    if(!ImCombined.empty())
+    {
+        Mat ImToShow = ShowImage16Gray(ImCorrected,ui->doubleSpinBoxMinNorm->value(),ui->doubleSpinBoxMaxNorm->value());
+        ShowsScaledImage(ImToShow, "Corrected Image");
+        path ImageOutFile = ui->lineEditOutFolder->text().toStdWString();
+        if(exists(ImageOutFile))
+        {
+            if(is_directory(ImageOutFile))
+            {
+                ImageOutFile.append(imageFilePath.stem().string() + "CorrectionImage.tif");
+                //Mat ImTemp = Normalise16Gray(ImCorrected, ui->doubleSpinBoxMinNorm->value(),
+                //                             ui->doubleSpinBoxMaxNorm->value());
+                imwrite(ImageOutFile.string(), ImCombined);
+            }
+        }
+    }
+}
+
+void MainWindow::on_pushButtonGetGlobalNorm_clicked()
+{
+    blockShowingImages = true;
+    ui->textEditOut->append("Global Normalisation start");
+    waitKey(100);
+    int filesCount = ui->listWidgetImageFiles->count();
+
+    int minNorm = 65535;
+    int maxNorm = 0;
+    for(int fileNr = 0; fileNr< filesCount; fileNr++)
+    {
+        imageFilePath = ui->lineEditImageFolder->text().toStdWString();
+        imageFilePath.append(ui->listWidgetImageFiles->item(fileNr)->text().toStdWString());
+        OpenImage(imageFilePath);
+        FlatFieldCorrection();
+        GetGlobalMask();
+
+        uint16_t * wImCorrected = (uint16_t *)ImCorrected.data;
+        uint16_t * wMaskFromImage = (uint16_t *)MaskFromImage.data;
+
+        for(int i = 0; i < maxXY; i++)
+        {
+            int val = *wImCorrected;
+            if(*wMaskFromImage)
+            {
+                if(minNorm > val)
+                    minNorm = val;
+                if(maxNorm < val)
+                    maxNorm = val;
+            }
+
+            wImCorrected++;
+            wMaskFromImage++;
+        }
+
+
+    }
+
+
+    blockShowingImages = false;
+    ShowImages();
+    ui->textEditOut->append("Global Normalisation Done");
+    ui->textEditOut->append("Min Norm = " + QString::number(minNorm) + "  Max Norm = " + QString::number(maxNorm));
+
+    ui->doubleSpinBoxMaxNorm->setValue(maxNorm);
+    ui->doubleSpinBoxMinNorm->setValue(minNorm);
+    ui->comboBoxNormalization->setCurrentIndex(3);
 }

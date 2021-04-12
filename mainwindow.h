@@ -6,6 +6,11 @@
 #include <boost/filesystem.hpp>
 #include <opencv2/core/core.hpp>
 
+#include "mazdaroi.h"
+#include "mazdaroiio.h"
+
+typedef MazdaRoi<unsigned int, 2> MR2DType;
+
 namespace Ui {
 class MainWindow;
 }
@@ -55,6 +60,8 @@ private slots:
 
     void on_pushButtonGetImCombination_clicked();
 
+    void on_pushButtonGetGlobalNorm_clicked();
+
 private:
     Ui::MainWindow *ui;
     cv::Mat ImIn;
@@ -71,13 +78,21 @@ private:
     boost::filesystem::path imageFilePath;
 
     bool blockShowingImages;
+
+    std::vector <MR2DType*> ROIVect;
     //double minNorm;
     //double maxNorm;
 
     void OpenImageFolder();
     void ShowsScaledImage(cv::Mat Im, std::string ImWindowName);
-    cv::Mat OpenImage(boost::filesystem::path FileToOpen);
+    void OpenImage(boost::filesystem::path FileToOpen);
     void ShowImages();
+    void FlatFieldCorrection();
+    void GetGlobalMask();
+    void GetTileMask();
+    void SaveRoi();
+    void GetNormalisationParams();
+    void SaveCorrectedImage();
     void ProcessImage();
 
 };
