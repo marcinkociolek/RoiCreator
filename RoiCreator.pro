@@ -26,57 +26,52 @@ CONFIG += c++11
 
 SOURCES += \
         main.cpp \
-        mainwindow.cpp \
-        #myimagewidget.cpp \
+        mainwindow.cpp\
+        ../../ProjectsLib/LibMarcin/myimagewidget.cpp \
         ../../ProjectsLib/LibMarcin/NormalizationLib.cpp \
         ../../ProjectsLib/LibMarcin/DispLib.cpp \
         ../../ProjectsLib/LibMarcin/StringFcLib.cpp \
         ../../ProjectsLib/LibMarcin/histograms.cpp \
-        ../../ProjectsLib/LibMarcin/RegionU16Lib.cpp \
-        ../../ProjectsLib/LibMarcin/gradient.cpp
+        ../../ProjectsLib/LibMarcin/RegionU16Lib.cpp
+
 
 HEADERS += \
         mainwindow.h\
+        ../../ProjectsLib/LibMarcin/myimagewidget.h \
         ../../ProjectsLib/LibMarcin/NormalizationLib.h \
         ../../ProjectsLib/LibMarcin/DispLib.h \
         ../../ProjectsLib/LibMarcin/StringFcLib.h \
         ../../ProjectsLib/LibMarcin/histograms.h \
-        ../../ProjectsLib/LibMarcin/RegionU16Lib.h \
-        ../../ProjectsLib/LibMarcin/gradient.h
+        ../../ProjectsLib/LibMarcin/RegionU16Lib.h
 
 FORMS += \
         mainwindow.ui
 
-win32: INCLUDEPATH += C:\opencv\build\include\
-win32: INCLUDEPATH += C:\boost_1_66_0\
-win32: INCLUDEPATH += ..\..\ProjectsLib\LibMarcin\
+win32: INCLUDEPATH += C:\opencv452cudaWorld\include\
+win32: INCLUDEPATH += C:\boost1_75\
 win32: INCLUDEPATH += C:\LibTiff\
+win32: INCLUDEPATH += ..\..\ProjectsLib\LibMarcin\
 win32: INCLUDEPATH += ../../ProjectsLibForein/LibPMS/
-win32: INCLUDEPATH += ../../ProjectsLibForein/LibPMS/
-
-#INCLUDEPATH += C:/ITK2/include/ITK-5.0/
 
 # this is for debug
-#win32: LIBS += -LC:/opencv/build/x64/vc15/lib/
-#win32: LIBS += -lopencv_world341d
+win32: LIBS += -LC:\opencv452cudaWorld\x64\vc16\lib
+win32: LIBS += -lopencv_world452d
 
-#win32: LIBS += -LC:/boost_1_66_0/stage/x64/lib/
-#win32: LIBS += -lboost_filesystem-vc141-mt-gd-x64-1_66
-#win32: LIBS += -lboost_regex-vc141-mt-gd-x64-1_66
-
+win32: LIBS += -LC:\boost1_75\stage\x64\lib/
+win32: LIBS += -lboost_filesystem-vc142-mt-gd-x64-1_75
+win32: LIBS += -lboost_regex-vc142-mt-gd-x64-1_75
 
 # this is for release
-win32: LIBS += -LC:/opencv/build/x64/vc15/lib/
-win32: LIBS += -lopencv_world341
+#win32: LIBS += -LC:\opencv452cudaWorld\x64\vc16\lib
+#win32: LIBS += -lopencv_world452
 
-win32: LIBS += -LC:/boost_1_66_0/stage/x64/lib/
-win32: LIBS += -lboost_filesystem-vc141-mt-x64-1_66
-win32: LIBS += -lboost_regex-vc141-mt-x64-1_66
-
-
+#win32: LIBS += -LC:\boost1_75\stage\x64\lib/
+#win32: LIBS += -lboost_filesystem-vc142-mt-x64-1_75
+#win32: LIBS += -lboost_regex-vc142-mt-x64-1_75
 
 win32: LIBS += -LC:/LibTiff/
 win32: LIBS += -llibtiff_i
+
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

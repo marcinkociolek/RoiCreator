@@ -195,6 +195,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->comboBoxNormalization->addItem("MinMax");
     ui->comboBoxNormalization->addItem("+/-3 sigma");
     ui->comboBoxNormalization->addItem("Global");
+    //ui->comboBoxNormalization->setCurrentIndex(3);
     blockShowingImages = false;
 }
 
